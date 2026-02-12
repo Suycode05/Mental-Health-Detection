@@ -7,3 +7,4 @@ venv/
 *.pkl large
 saved_*
 .ipynb_checkpoints/
+Model/
