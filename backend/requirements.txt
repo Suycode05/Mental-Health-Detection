@@ -1,7 +1,9 @@
-transformers
-torch
-pandas
-nltk
-scikit-learn
-fastapi
-uvicorn
+fastapi==0.115.0
+uvicorn==0.30.6
+pydantic==2.8.2
+torch==2.4.1
+transformers==4.44.2
+pandas==2.2.2
+nltk==3.8.1
+scikit-learn==1.5.1
+python-multipart==0.0.9
