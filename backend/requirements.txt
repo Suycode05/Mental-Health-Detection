@@ -7,3 +7,5 @@ pandas==2.2.2
 nltk==3.8.1
 scikit-learn==1.5.1
 python-multipart==0.0.9
+qwen-asr
+librosa

@@ -10,5 +10,5 @@ class VoiceInput(BaseModel):
 class PredictionOutput(BaseModel):
     prediction: str          # e.g. "Depression"
     confidence: float        # 0.0-1.0
-    message: Optional[str] = None
+    message: str
     transcribed_text: Optional[str] = None  # for voice

@@ -1,8 +1,34 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { submitJournal } from '../services/api';  // Assuming api.js is in src/services/api.js
 
 const Journal = () => {
     const [entry, setEntry] = useState("Reflecting on the meeting earlier today and how the project is shaping up. I felt a bit nervous during the presentation, but the feedback was mostly positive.\n\nI've been thinking about the balance between work and rest lately. It's easy to get caught up in the grind, especially with the upcoming deadline on Monday. I want to make sure I don't burn out before we even reach the finish line.\n\nPerhaps I'll take a short walk after this entry to clear my head. The weather looks clear and crisp.");
+    const [loading, setLoading] = useState(false);
+    const [result, setResult] = useState(null);
+    const [error, setError] = useState(null);
+    const [realTimeSentiment, setRealTimeSentiment] = useState("Neutral-Positive");  // Placeholder for real-time
+
+    // Handler for submit button
+    const handleSubmit = async () => {
+        if (!entry.trim()) {
+            setError("Please write something before submitting.");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        setResult(null);
+
+        try {
+            const response = await submitJournal(entry);
+            setResult(response);
+            setRealTimeSentiment(response.prediction);  // Update real-time sentiment based on result
+        } catch (err) {
+            setError(err.message || "Analysis failed. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="flex-1 flex overflow-hidden h-full">
@@ -48,17 +74,7 @@ const Journal = () => {
                 {/* Editor Header */}
                 <div className="px-8 py-6 flex justify-between items-center border-b border-slate-100 dark:border-slate-800">
                     <div>
-                        <h2 className="text-2xl font-bold tracking-tight">October 26, 2023</h2>
-                        <p className="text-sm text-slate-400">11:42 AM • Thursday</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                            <div className="size-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                            Auto-saving
-                        </div>
-                        <button className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
-                            <span className="material-symbols-outlined">share</span>
-                        </button>
+                        <h2 className="text-2xl font-bold">Mood Journal</h2>
                     </div>
                 </div>
                 {/* Actual Editor Area */}
@@ -83,7 +99,7 @@ const Journal = () => {
                         ></textarea>
                     </div>
                 </div>
-                {/* Analysis Bar */}
+                {/* Analysis Bar – Added result display */}
                 <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md">
                     <div className="max-w-3xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-6">
@@ -96,15 +112,31 @@ const Journal = () => {
                                 <span className="material-symbols-outlined text-primary text-xl">auto_awesome</span>
                                 <div className="flex flex-col">
                                     <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Real-time Sentiment</span>
-                                    <span className="text-sm font-bold text-primary">Neutral-Positive</span>
+                                    <span className="text-sm font-bold text-primary">{realTimeSentiment}</span>
                                 </div>
                             </div>
                         </div>
-                        <button className="w-full md:w-auto px-8 py-3 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-95">
-                            <span>Submit for AI Analysis</span>
+                        {error && <p className="text-red-500 text-sm">{error}</p>}
+                        {result && (
+                            <p className="text-sm text-green-500">
+                                Confidence: {Math.round(result.confidence * 100)}%
+                            </p>
+                        )}
+                        <button 
+                            className="w-full md:w-auto px-8 py-3 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all hover:shadow-xl hover:shadow-primary/30 active:scale-95"
+                            onClick={handleSubmit}
+                            disabled={loading}
+                        >
+                            <span>{loading ? 'Analyzing...' : 'Submit for AI Analysis'}</span>
                             <span className="material-symbols-outlined text-lg">bolt</span>
                         </button>
                     </div>
+                    {result && (
+                        <div className="mt-4 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                            <h3 className="text-lg font-bold mb-2">AI Analysis Result</h3>
+                            <p className="text-sm">{result.message}</p>
+                        </div>
+                    )}
                 </div>
             </section>
         </div>
