@@ -1,70 +1,90 @@
 # backend/app/text_predict.py
 
-from pathlib import Path
-from transformers import BertTokenizerFast, BertForSequenceClassification
 import torch
-import pickle
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+import numpy as np
 
-# Correct path: go up ONE level from app/ to backend root
-BACKEND_ROOT = Path(__file__).resolve().parent.parent
+# Load multi-emotion BERT model once (use a pre-trained emotion classifier)
+EMOTION_MODEL_NAME = "bhadresh-savani/bert-base-uncased-emotion"  # Supports: sadness, joy, love, anger, fear, surprise
+# If you want exact labels (Calm, Anxious, Energetic, Sad, Depressed), we map them
 
-# Model and label paths
-MODEL_DIR = BACKEND_ROOT / "saved_models" / "saved_mental_status_bert"
-LABEL_PATH = BACKEND_ROOT / "saved_models" / "label_encoder.pkl"
+# Map to your frontend emotions (adjust if needed)
+EMOTION_MAP = {
+    'joy': 'Energetic',
+    'surprise': 'Energetic',
+    'love': 'Calm',
+    'anger': 'Anxious',
+    'fear': 'Anxious',
+    'sadness': 'Sad',
+    # Add 'depressed' as fallback for sadness or custom
+}
 
-# Debug prints (remove after testing)
-print("=== text_predict.py Debug ===")
-print("Current script location:", Path(__file__).absolute())
-print("Calculated backend root:", BACKEND_ROOT.absolute())
-print("Model directory:", MODEL_DIR.absolute())
-print("Label file:", LABEL_PATH.absolute())
-
-if not MODEL_DIR.exists():
-    raise FileNotFoundError(f"Model directory not found: {MODEL_DIR}")
-
-if not LABEL_PATH.is_file():
-    raise FileNotFoundError(f"Label encoder not found: {LABEL_PATH}")
-
-# List files in model dir for confirmation
-print("Files in model directory:")
-for f in MODEL_DIR.iterdir():
-    print(f"  - {f.name}")
-
-# Load tokenizer (use Fast version – works with tokenizer.json)
-tokenizer = BertTokenizerFast.from_pretrained(
-    MODEL_DIR,
-    use_fast=True
+# Load model
+tokenizer = AutoTokenizer.from_pretrained(EMOTION_MODEL_NAME)
+model = AutoModelForSequenceClassification.from_pretrained(EMOTION_MODEL_NAME)
+emotion_classifier = pipeline(
+    "text-classification",
+    model=model,
+    tokenizer=tokenizer,
+    return_all_scores=True,  # ← Key: returns all probabilities
+    device=0 if torch.cuda.is_available() else -1
 )
 
-model = BertForSequenceClassification.from_pretrained(MODEL_DIR)
+def predict_text(text: str):
+    """
+    Predict emotions with probabilities for multiple classes.
+    Returns dict with probabilities, dominant, confidence, message.
+    """
+    if not text or text == "[No speech detected]":
+        return {
+            "prediction": {"Calm": 0.2, "Anxious": 0.2, "Energetic": 0.2, "Sad": 0.2, "Depressed": 0.2},
+            "dominant": "Neutral",
+            "confidence": 0.2,
+            "message": "No clear speech detected. Try speaking more clearly."
+        }
 
-label_encoder = pickle.load(open(LABEL_PATH, 'rb'))
+    try:
+        # Get all emotion scores
+        results = emotion_classifier(text)[0]  # List of dicts: [{'label': 'joy', 'score': 0.68}, ...]
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
-model.eval()
+        # Convert to probabilities dict for frontend emotions
+        probs = {emotion: 0.0 for emotion in ["Calm", "Anxious", "Energetic", "Sad", "Depressed"]}
+        for res in results:
+            mapped = EMOTION_MAP.get(res['label'], 'Depressed')  # Default to Depressed if unmapped
+            probs[mapped] = res['score']
 
-print("BERT model and tokenizer loaded successfully!")
+        # Normalize to sum ~1.0 (optional, but good for % bars)
+        total = sum(probs.values())
+        if total > 0:
+            for emotion in probs:
+                probs[emotion] /= total
 
-# Your predict function (unchanged)
-def predict_text(entry: str):
-    from .utils import clean_statement  # assuming clean_statement is in utils.py
-    
-    cleaned = clean_statement(entry)
-    inputs = tokenizer(cleaned, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
-    
-    with torch.no_grad():
-        outputs = model(**inputs)
-    
-    logits = outputs.logits
-    probs = torch.softmax(logits, dim=1)
-    predicted_class = torch.argmax(logits, dim=1).item()
-    confidence = probs.max().item()
-    
-    label = label_encoder.inverse_transform([predicted_class])[0]
-    
-    return {
-        "prediction": label,
-        "confidence": round(float(confidence), 4),
-        "message": f"Detected: {label} with {confidence:.1%} confidence"
-    }
+        # Dominant = highest prob emotion
+        dominant = max(probs, key=probs.get)
+        confidence = probs[dominant]
+
+        # Generate insight message based on dominant
+        messages = {
+            "Calm": "Your voice shows stability and relaxation. Great job maintaining balance—continue with mindfulness practices.",
+            "Anxious": "Slight tension detected in tone. Try deep breathing exercises to ease rising stress levels.",
+            "Energetic": "High energy and positivity in your voice. Channel this into productive activities like exercise.",
+            "Sad": "Subtle sadness in expression. Consider journaling or talking to a friend to lift your spirits.",
+            "Depressed": "Low energy patterns suggest possible depression. Reach out to a professional for support—small steps count."
+        }
+        message = messages.get(dominant, "Voice analysis complete. Reflect on how you're feeling today.")
+
+        return {
+            "prediction": probs,  # ← Now a dict of {emotion: prob}
+            "dominant": dominant,
+            "confidence": confidence,
+            "message": message
+        }
+
+    except Exception as e:
+        print(f"Text prediction failed: {e}")
+        return {
+            "prediction": {"Calm": 0.25, "Anxious": 0.25, "Energetic": 0.25, "Sad": 0.25, "Depressed": 0.0},
+            "dominant": "Neutral",
+            "confidence": 0.25,
+            "message": f"Analysis error: {str(e)}. Please try again."
+        }
