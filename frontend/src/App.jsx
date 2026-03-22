@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Home from './mental_health_dashboard_overview/Home';
 import Journal from './text_mood_journal/Journal';
 import Voice from './voice_emotion_analysis/Voice';
+import Video from './voice_emotion_analysis/Video';
 import Resources from './mental_health_resources_&_support/Resources';
 import Reports from './pages/Reports'; // Keeping Reports as is for now
 
@@ -14,6 +15,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/journal" element={<Journal />} />
         <Route path="/voice" element={<Voice />} />
+        <Route path="/video" element={<Video />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/resources" element={<Resources />} />
       </Route>

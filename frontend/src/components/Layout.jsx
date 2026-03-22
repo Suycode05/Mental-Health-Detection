@@ -59,6 +59,10 @@ const Layout = () => {
                         <span className="material-symbols-outlined">mic</span>
                         <span>Voice Analysis</span>
                     </Link>
+                    <Link to="/video" onClick={closeSidebar} className={getLinkClass("/video")}>
+                        <span className="material-symbols-outlined">mic</span>
+                        <span>Video Analysis</span>
+                    </Link>
                     <Link to="/reports" onClick={closeSidebar} className={getLinkClass("/reports")}>
                         <span className="material-symbols-outlined">bar_chart</span>
                         <span>Reports</span>

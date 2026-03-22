@@ -6,6 +6,7 @@ import logging
 from .models import TextInput, PredictionOutput
 from .text_predict import predict_text
 from .voice_predict import predict_voice
+from app.face_predict import predict_face
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ app = FastAPI(title="MindFlow AI - Mental Health Backend")
 # Allow frontend (React on localhost:5173 or wherever Vite runs)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173","http://localhost:3000", "*"],  # Change to your frontend URL in prod
+    allow_origins=["http://localhost:5173","http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000", "*"],  # Change to your frontend URL in prod
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,3 +47,8 @@ async def voice_analysis(audio: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Voice analysis error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/predict_face")
+async def face_emotion(data: dict):
+    result = predict_face(data["image"])
+    return result
