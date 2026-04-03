@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
+import ChatBot from './ChatBot';
 
 const Layout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -106,6 +107,9 @@ const Layout = () => {
             <main className="flex-1 overflow-hidden flex flex-col relative w-full">
                 <Outlet />
             </main>
+
+            {/* Custom Chatbot UI */}
+            <ChatBot />
         </div>
     );
 };
